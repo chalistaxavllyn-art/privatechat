@@ -1,0 +1,9 @@
+{
+  "name": "Cute Super Chat 🌸",
+  "short_name": "Cute Chat",
+  "start_url": "index.html",
+  "display": "standalone",
+  "background_color": "#fff5f7",
+  "theme_color": "#ffe4e8",
+  "orientation": "portrait"
+}

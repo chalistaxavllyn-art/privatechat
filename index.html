@@ -1,0 +1,934 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<title>Private Chat 🌸</title>
+<link rel="manifest" href="manifest.json">
+<meta name="theme-color" content="#ffe4e8">
+<script src="https://unpkg.com/peerjs@1.5.2/dist/peerjs.min.js"></script>
+<link href="https://fonts.googleapis.com/css2?family=Fredoka:wght@400;600&display=swap" rel="stylesheet">
+
+<style>
+*{box-sizing:border-box;margin:0;padding:0;font-family:'Fredoka',cursive,sans-serif}
+body{background:#fff5f7;height:100vh;display:flex;justify-content:center}
+.chat-container{width:100%;max-width:420px;height:100vh;display:flex;flex-direction:column;background:#fff;box-shadow:0 0 25px rgba(255,182,193,.3);position:relative;overflow:hidden}
+.header{background:#ffe4e8;padding:13px 14px;text-align:center;border-bottom:2px solid #ffccd5}
+.header h3{color:#ff758f;font-size:18px}
+.id-box{font-size:10px;color:#ff758f;margin-top:4px}
+.copy-id-btn{display:inline-flex;background:#fff;color:#ff758f;border:1px solid #ffb3c1;padding:2px 6px;border-radius:10px;font-size:10px;min-width:auto}
+.copy-id-btn:active{transform:scale(.92)}
+button{background:#ff758f;color:white;border:0;padding:8px 12px;border-radius:18px;font-weight:600;font-size:11px;cursor:pointer;display:flex;align-items:center;justify-content:center;gap:4px}
+button:active{transform:scale(.95)}
+input{outline:none}
+.screen{display:none;flex:1;min-height:0;flex-direction:column}
+.screen.active{display:flex}
+
+/* DAFTAR CHAT */
+.home-search{padding:10px;background:#fff0f3;border-bottom:1px solid #ffccd5}
+.home-search input{width:100%;padding:10px 14px;border:2px solid #ffb3c1;border-radius:20px;color:#590d22}
+.contact-list{flex:1;overflow-y:auto;background:#fff5f7}
+.contact{display:flex;align-items:center;gap:11px;padding:12px;border-bottom:1px solid #ffe0e5;background:white;cursor:pointer}
+.contact:active{background:#fff0f3}
+.avatar{width:45px;height:45px;border-radius:50%;background:#ffe4e8;display:flex;align-items:center;justify-content:center;font-size:22px;flex:none}
+.contact-info{min-width:0;flex:1}
+.contact-name{font-weight:600;color:#590d22;font-size:14px}
+.contact-preview{font-size:11px;color:#9b6170;margin-top:3px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.contact-time{font-size:9px;color:#b57a88}
+.empty{text-align:center;color:#b57a88;padding:35px 20px;font-size:12px}
+.add-contact{margin:10px;background:#ff758f}
+
+/* ROOM */
+.room-header{display:flex;align-items:center;gap:8px;background:#ffe4e8;padding:9px;border-bottom:2px solid #ffccd5}
+.back-btn{background:transparent;color:#ff758f;font-size:20px;padding:5px}
+.room-avatar{width:36px;height:36px;border-radius:50%;background:white;display:flex;align-items:center;justify-content:center}
+.room-title{flex:1;color:#590d22}
+.room-title b{font-size:14px}.room-title small{display:block;font-size:9px;color:#ff758f}
+.room-actions{display:flex;gap:3px}.room-actions button{padding:7px 9px}
+.chat-messages{flex:1;min-height:0;padding:12px;overflow-y:auto;display:flex;flex-direction:column;gap:10px;background:#fff5f7}
+.msg{max-width:82%;padding:8px 12px;border-radius:16px;font-size:13px;line-height:1.4;word-wrap:break-word;display:flex;flex-direction:column}
+.msg.me{align-self:flex-end;background:#ff758f;color:white;border-bottom-right-radius:4px}
+.msg.them{align-self:flex-start;background:white;color:#590d22;border:2px solid #ffccd5;border-bottom-left-radius:4px}
+.sender-name{font-size:10px;font-weight:600;margin-bottom:3px;opacity:.85}
+.msg-time{font-size:9px;align-self:flex-end;margin-top:4px;opacity:.75}
+.sticker-img{width:110px;height:110px;object-fit:contain;margin-top:4px}
+.msg audio{width:190px;height:35px;margin-top:4px}
+.chat-input-bar{padding:8px;background:white;display:flex;gap:6px;align-items:center;border-top:2px solid #ffccd5}
+.chat-input-bar input{flex:1;padding:9px 12px;border:2px solid #ffb3c1;border-radius:20px;color:#590d22}
+.btn-vn{background:#ffd6ff;color:#5a189a}.btn-vn.recording{background:#ff4d6d;color:white;animation:pulse 1s infinite}
+@keyframes pulse{50%{transform:scale(1.06)}}
+.picker-panel{display:none;background:white;border-top:2px solid #ffccd5;padding:10px;max-height:180px;overflow-y:auto}
+.picker-tabs{display:flex;gap:8px;margin-bottom:8px}.picker-tabs button{flex:1;padding:5px;background:#ffe4e8;color:#ff758f}
+.emoji-grid,.sticker-grid{display:flex;flex-wrap:wrap;gap:10px;justify-content:center}
+.emoji-item{font-size:22px;cursor:pointer}.sticker-item{width:50px;height:50px;cursor:pointer;object-fit:contain}
+.video-call-overlay{display:none;position:absolute;inset:0;background:#0d1117;z-index:100;flex-direction:column;align-items:center;justify-content:center}
+.remote-video{width:100%;height:100%;object-fit:cover}.local-video{width:100px;height:140px;position:absolute;top:15px;right:15px;border-radius:14px;border:3px solid #ff758f;object-fit:cover}
+.vc-controls{position:absolute;bottom:25px;display:flex;gap:15px}.vc-controls button{padding:10px 20px}
+audio{outline:none}
+.modal{display:none;position:absolute;inset:0;background:rgba(89,13,34,.35);z-index:120;align-items:center;justify-content:center;padding:25px}
+.modal-box{background:white;border-radius:22px;padding:18px;width:100%;max-width:340px}.modal-box h3{color:#ff758f;margin-bottom:10px}
+.modal-box input{width:100%;padding:10px;border:2px solid #ffb3c1;border-radius:18px;margin-bottom:8px}
+.modal-buttons{display:flex;gap:8px}.modal-buttons button{flex:1}
+.btn-light{background:#ffe4e8;color:#ff758f}
+
+/* v2 additions */
+.profile-row{display:flex;align-items:center;justify-content:center;gap:8px}.profile-avatar{width:32px;height:32px;border-radius:50%;object-fit:cover;background:#fff;border:2px solid #ffb3c1}.status-text{font-size:9px;color:#9b6170}.online-dot{display:inline-block;width:7px;height:7px;border-radius:50%;background:#45c46a;margin-right:4px}.offline-dot{display:inline-block;width:7px;height:7px;border-radius:50%;background:#aaa;margin-right:4px}.edit-name-btn{display:inline-flex;background:#fff;color:#ff758f;border:1px solid #ffb3c1;padding:2px 6px;border-radius:10px;font-size:10px;min-width:auto}.typing-bubble{display:none;align-self:flex-start;background:#fff;border:2px solid #ffccd5;border-radius:18px;padding:7px 11px;color:#ff758f;gap:3px;align-items:center;margin:0 12px 5px}.typing-bubble.show{display:flex}.typing-bubble i{width:5px;height:5px;border-radius:50%;background:#ff9aae;animation:typingDot 1.1s infinite}.typing-bubble i:nth-child(2){animation-delay:.18s}.typing-bubble i:nth-child(3){animation-delay:.36s}@keyframes typingDot{0%,60%,100%{transform:translateY(0);opacity:.45}30%{transform:translateY(-4px);opacity:1}}.msg-status{font-size:9px;margin-left:3px}.msg-status.blue{color:#38a9ff}.msg-status.gray{color:rgba(255,255,255,.8)}.msg-photo{max-width:190px;border-radius:12px;margin-top:4px}.chat-input-bar{margin:7px 9px 10px;border:1px solid #ffd1d9;border-radius:25px;box-shadow:0 5px 18px rgba(255,117,143,.15);padding:6px;background:#fff}.chat-input-bar input{border:0;background:transparent}.photo-btn{background:#ffe4e8;color:#ff758f;padding:8px 10px}.sticker-tools{display:flex;gap:6px;flex-wrap:wrap;margin-bottom:8px}.sticker-tools input{flex:1;min-width:150px;padding:7px 10px;border:1px solid #ffb3c1;border-radius:15px}.sticker-tools button{padding:6px 9px;background:#ffe4e8;color:#ff758f}.call-mini{width:110px;height:150px;position:absolute;top:15px;right:15px;border-radius:16px;border:3px solid #ff758f;object-fit:cover;z-index:103;box-shadow:0 5px 20px rgba(0,0,0,.35);transform:none!important}.call-title{position:absolute;top:15px;left:15px;z-index:104;background:rgba(0,0,0,.35);color:#fff;padding:7px 12px;border-radius:18px}.call-buttons{position:absolute;bottom:25px;z-index:104;display:flex;gap:14px}.call-buttons button{width:54px;height:54px;border-radius:50%;padding:0;font-size:20px}.call-buttons .end{background:#ff3b5c}.call-buttons .mute{background:#444}.profile-modal .modal-box{text-align:center}.profile-preview{width:80px;height:80px;border-radius:50%;object-fit:cover;border:3px solid #ffccd5;margin:5px auto 10px;display:block}
+
+/* ===== UI REDESIGN ===== */
+body{background:linear-gradient(145deg,#fff7fa,#ffeef3);}
+.chat-container{max-width:430px;background:#fff8fa;box-shadow:0 0 35px rgba(255,117,143,.18)}
+.header{padding:16px 16px 14px;background:linear-gradient(180deg,#fff1f5,#ffe4e8);border-bottom:1px solid #ffd0da;text-align:left}
+.header h3{font-size:21px;letter-spacing:.2px;margin-bottom:10px}
+.profile-row{justify-content:flex-start;gap:10px}
+.profile-avatar{width:62px;height:62px;border:3px solid #fff;box-shadow:0 3px 10px rgba(255,117,143,.16)}
+.id-box{font-size:11px;line-height:1.55}
+.id-box strong{font-size:14px}
+.edit-name-btn,.copy-id-btn{font-size:11px;padding:4px 7px;background:#fff;border:1px solid #ffb7c6}
+.home-search{padding:14px 16px 10px;background:#fff;border:0}
+.home-search input{height:48px;padding:10px 16px;border:2px solid #ffb7c6;border-radius:28px;background:#fff;font-size:15px}
+.add-contact{margin:8px 16px 10px;width:calc(100% - 32px);height:48px;border-radius:25px;font-size:15px;box-shadow:0 5px 12px rgba(255,117,143,.18)}
+.home-filters{display:flex;gap:8px;padding:0 16px 12px;background:#fff}
+.home-filters button{flex:1;height:38px;border-radius:22px;background:#fff0f3;color:#ff758f;font-size:12px;border:1px solid #ffd0da}
+.home-filters button.active-filter{background:var(--accent,#ff6f8d);color:#fff;border-color:var(--accent,#ff6f8d)}
+.contact-list{padding:0 12px 16px;background:#fff8fa}
+.contact{position:relative;gap:12px;margin:7px 4px;padding:12px;border:1px solid #ffe1e7;border-radius:22px;background:#fff;box-shadow:0 3px 12px rgba(255,117,143,.06)}
+.contact:active{transform:scale(.99)}
+.avatar{width:52px;height:52px;border-radius:50%;font-size:24px;border:2px solid #ffe0e7}
+.contact-name{font-size:15px}.contact-preview{font-size:11px}.contact-time{font-size:10px}
+.contact-edit{background:#fff0f3!important;color:#ff758f!important;border:0!important;padding:5px 8px!important;border-radius:14px!important;font-size:10px!important}
+.empty{padding:50px 20px}
+.room-header{padding:10px 12px;background:rgba(255,238,243,.96);border-bottom:1px solid #ffd1dc;box-shadow:0 2px 10px rgba(255,117,143,.08)}
+.back-btn{font-size:29px;padding:2px 5px}.room-avatar{width:46px;height:46px;border:2px solid #fff;overflow:hidden;box-shadow:0 2px 8px rgba(255,117,143,.15)}
+.room-avatar img{width:100%;height:100%;object-fit:cover}.room-title b{font-size:15px}.room-title small{font-size:10px}
+.room-actions{gap:5px}.room-actions button{width:43px;height:43px;border-radius:50%;padding:0;font-size:18px}
+.chat-messages{padding:16px 12px 10px;gap:10px;background:radial-gradient(circle at 10% 10%,rgba(255,182,193,.12) 0 2px,transparent 3px),#fff7f9}
+.msg{max-width:82%;padding:10px 13px;border-radius:19px;font-size:13px;box-shadow:0 2px 9px rgba(255,117,143,.07)}
+.msg.me{background:#ff7090;border-bottom-right-radius:6px}.msg.them{background:#fff;border:1px solid #ffe0e6;border-bottom-left-radius:6px}
+.msg-photo{max-width:235px;border-radius:15px}.sticker-img{width:130px;height:130px}
+.picker-panel{margin:0 9px 6px;border:1px solid #ffd5de;border-radius:22px;padding:10px;background:#fff;box-shadow:0 8px 25px rgba(255,117,143,.12);max-height:235px}
+.picker-tabs{padding:2px;background:#fff0f3;border-radius:18px}.picker-tabs button{border-radius:16px;padding:7px;background:transparent;color:var(--accent,#ff6f8d)}.picker-tabs button.active-picker{background:#fff;color:var(--accent,#ff6f8d);box-shadow:0 2px 7px rgba(255,117,143,.1)}
+.emoji-grid{gap:12px;padding:6px 2px}.emoji-item{font-size:25px}.sticker-grid{gap:10px;padding:4px}.sticker-item{width:58px;height:58px;border-radius:14px;background:#fff7f9}
+.sticker-tools{width:100%;padding:4px}.sticker-tools input{min-width:0}.sticker-tools button{font-size:10px}
+.typing-bubble{margin:0 12px 5px;border:1px solid #ffd9e0;box-shadow:0 2px 8px rgba(255,117,143,.08)}
+.chat-input-bar{margin:7px 9px 10px;padding:6px 7px;border:1px solid #ffd0db;border-radius:30px;min-height:58px;box-shadow:0 6px 22px rgba(255,117,143,.14);gap:5px}
+.chat-input-bar>button{width:43px;height:43px;min-width:43px;border-radius:50%;padding:0;font-size:18px}
+.chat-input-bar input{height:42px;padding:9px 8px;font-size:14px;min-width:0}
+.unified-picker-btn{background:#ffe9ef!important;color:var(--accent,#ff6f8d)!important}.send-btn{background:var(--accent,#ff6f8d)!important;font-size:19px!important}.photo-btn{background:#fff0f3!important;color:var(--accent,#ff6f8d)!important}
+.btn-vn{background:#f8ddff!important;color:#9b49a7!important}
+.home-profile-card{margin:0 16px 8px;padding:13px 14px;border-radius:24px;background:linear-gradient(135deg,#fff0f4,#ffe8ee);border:1px solid #ffd4de;display:flex;align-items:center;gap:11px;box-shadow:0 4px 15px rgba(255,117,143,.08)}
+.home-profile-card .big-avatar{width:70px;height:70px;border-radius:50%;border:3px solid #fff;object-fit:cover;box-shadow:0 3px 10px rgba(255,117,143,.16)}
+.home-profile-main{flex:1;min-width:0}.home-profile-main b{font-size:17px;color:#590d22}.home-profile-main .small{font-size:11px;color:#a56b78;margin-top:2px}
+.home-profile-edit{background:#fff!important;color:var(--accent,#ff6f8d)!important;border:1px solid #ffb7c6!important;padding:7px 11px!important}
+.profile-preview{box-shadow:0 4px 12px rgba(255,117,143,.15)}
+
+
+/* ===== V4 HOME / WHATSAPP-LIKE REDESIGN ===== */
+.home-topbar{height:72px;display:flex;align-items:center;justify-content:space-between;padding:12px 18px;background:linear-gradient(180deg,#fff7fa,#fff0f4);border-bottom:1px solid #ffd4df;text-align:left;flex:none}
+.brand-title{font-size:21px;font-weight:600;color:var(--accent,#ff6f8d);display:flex;align-items:center;gap:6px}.brand-title span{letter-spacing:.1px}
+.top-add-btn{width:48px;height:48px;border-radius:50%;padding:0;background:var(--accent,#ff6f8d);color:#fff;font-size:30px;line-height:1;box-shadow:0 5px 15px rgba(255,111,141,.25);border:4px solid #fff}
+.top-search{padding:14px 18px 10px;background:#fff8fa;flex:none}
+.search-wrap{height:52px;border:2px solid #ffb8c8;border-radius:28px;background:#fff;display:flex;align-items:center;padding:0 12px;box-shadow:0 3px 12px rgba(255,117,143,.06)}
+.search-wrap>span{font-size:30px;color:#ff7b98;line-height:1;transform:rotate(-20deg);margin-right:7px}.search-wrap input{flex:1;border:0;font-size:15px;background:transparent;color:#590d22;min-width:0}.search-wrap input::placeholder{color:#9e8090}.search-filter-btn{width:38px;height:38px;padding:0;border-radius:50%;background:#fff0f4;color:var(--accent,#ff6f8d);font-size:20px}
+.channels-section{display:flex;align-items:center;gap:8px;padding:10px 14px 12px;background:#fff8fa;border-bottom:1px solid #ffe0e7;overflow:hidden;flex:none}.section-intro{display:flex;align-items:center;gap:9px;min-width:145px}.channel-main-icon{width:54px;height:54px;border-radius:50%;display:flex;align-items:center;justify-content:center;background:#ffe2ea;font-size:27px}.section-intro b{display:block;color:#6b1934;font-size:15px}.section-intro small{display:block;color:#a27684;font-size:9px;margin-top:4px}.channel-list{display:flex;gap:8px;overflow-x:auto;flex:1;padding:2px 0;scrollbar-width:none}.channel-list::-webkit-scrollbar{display:none}.channel-item{min-width:67px;text-align:center;cursor:pointer}.channel-avatar{width:53px;height:53px;border-radius:50%;display:flex;align-items:center;justify-content:center;margin:auto;background:#fff;border:2px solid #ffd0dc;box-shadow:0 3px 10px rgba(255,117,143,.08);font-size:22px}.channel-item b{display:block;font-size:9px;color:#71324a;margin-top:4px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}.create-channel-btn{width:60px;min-width:60px;height:74px;padding:3px;border:0;background:transparent;color:var(--accent,#ff6f8d);display:flex;flex-direction:column;align-items:center;justify-content:center}.create-channel-btn span{width:47px;height:47px;border-radius:50%;border:2px solid #ffc4d1;background:#fff;display:flex;align-items:center;justify-content:center;font-size:25px;box-shadow:0 3px 10px rgba(255,117,143,.08)}.create-channel-btn small{font-size:8px;line-height:1.1;margin-top:3px}
+.home-profile-card{margin:10px 16px 8px;padding:14px;border-radius:25px;background:linear-gradient(135deg,#fff1f5,#ffe8ee);border:1px solid #ffd3de;box-shadow:0 4px 15px rgba(255,117,143,.08);flex:none}.home-profile-card .big-avatar{width:76px;height:76px}.home-profile-main b{font-size:18px}.profile-online-dot{color:#38c96b;margin-left:2px}.profile-id-row{display:flex;align-items:center;gap:5px;font-size:11px;color:#a56b78;margin-top:3px}.mini-copy{width:28px!important;height:28px!important;padding:0!important;border-radius:50%!important;background:#fff!important;color:var(--accent,#ff6f8d)!important;border:1px solid #ffc0ce!important;font-size:12px!important}.home-profile-edit{border-radius:22px!important;padding:9px 13px!important;font-size:12px!important}
+.chat-section-title{padding:5px 18px 4px;display:flex;align-items:baseline;gap:7px;color:#6b1934;background:#fff8fa}.chat-section-title span{font-size:16px;font-weight:600}.chat-section-title small{font-size:9px;color:#a77b89}.contact-list{padding:0 12px 82px;background:#fff8fa;overflow-y:auto}.contact{margin:6px 4px;padding:11px 12px;border-radius:22px}.contact-status-dot{width:9px!important;height:9px!important;right:8px!important;bottom:5px!important;border:2px solid #fff}.contact-edit{display:none!important}.bottom-nav{position:absolute;left:12px;right:12px;bottom:10px;height:68px;background:rgba(255,255,255,.96);border:1px solid #ffd5df;border-radius:34px;box-shadow:0 7px 25px rgba(255,117,143,.13);display:flex;align-items:center;justify-content:space-around;z-index:20}.nav-item{background:transparent!important;color:#ff8aa2!important;padding:6px 10px!important;display:flex!important;flex-direction:column;gap:2px!important;border-radius:24px!important;font-size:20px!important}.nav-item small{font-size:9px}.nav-item.active{background:#fff0f4!important;color:var(--accent,#ff6f8d)!important;min-width:65px}
+.profile-id-edit{display:flex;align-items:center;justify-content:center;gap:7px;color:#a56b78;font-size:11px;margin:-1px 0 8px}.profile-modal .modal-box input{margin-bottom:8px}
+
+/* ===== V5 STATUS / CALLS / THEMES ===== */
+.app-page-screen{background:#fff8fa;min-height:0}.page-header{height:66px;display:flex;align-items:center;gap:10px;padding:9px 12px;background:linear-gradient(180deg,#fff7fa,#fff0f4);border-bottom:1px solid #ffd4df;flex:none}.page-header>div{flex:1}.page-header b{display:block;color:#6b1934;font-size:17px}.page-header small{display:block;color:#a77b89;font-size:9px;margin-top:2px}.page-icon-btn{width:38px;height:38px;border-radius:50%;padding:0;background:var(--accent,#ff6f8d);color:#fff;font-size:22px}.status-content{padding:12px;overflow-y:auto}.status-hero{background:linear-gradient(135deg,#fff1f5,#ffe7ee);border:1px solid #ffd1dc;border-radius:24px;padding:14px;box-shadow:0 5px 16px rgba(255,117,143,.08)}.status-my-row{display:flex;align-items:center;gap:10px}.status-avatar-wrap{position:relative}.status-avatar{width:62px;height:62px;border-radius:50%;object-fit:cover;border:3px solid #fff;box-shadow:0 3px 10px rgba(255,117,143,.18)}.status-add-mini{position:absolute;right:-3px;bottom:-3px;width:25px;height:25px;border-radius:50%;padding:0;background:var(--accent,#ff6f8d);color:#fff;border:2px solid #fff}.status-my-info{flex:1}.status-my-info b{display:block;color:#6b1934;font-size:14px}.status-my-info small{display:block;color:#a77b89;font-size:10px;margin-top:3px}.status-arrow{background:transparent;color:var(--accent,#ff6f8d);font-size:27px;padding:5px}.status-actions{display:flex;gap:7px;margin-top:12px}.status-actions button{flex:1;background:#fff;color:var(--accent,#ff6f8d);border:1px solid #ffc4d1;font-size:10px;padding:9px 6px}.status-section-title{padding:16px 4px 8px;color:#6b1934;font-size:14px;font-weight:600}.status-card{display:flex;align-items:center;gap:10px;padding:11px;background:#fff;border:1px solid #ffe0e7;border-radius:19px;margin-bottom:8px}.status-ring{width:50px;height:50px;border-radius:50%;padding:2px;background:linear-gradient(135deg,#ff6f8d,#ffb3c1)}.status-ring img{width:100%;height:100%;border-radius:50%;object-fit:cover;border:2px solid #fff}.status-card-info{flex:1;min-width:0}.status-card-info b{display:block;color:#6b1934;font-size:12px}.status-card-info small{display:block;color:#a77b89;font-size:9px;margin-top:3px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}.status-open-btn{background:#fff0f4;color:var(--accent,#ff6f8d);padding:6px 9px;font-size:9px}.status-empty{text-align:center;color:#a77b89;font-size:11px;padding:30px 15px}.call-tabs{display:flex;gap:5px;padding:10px 10px;background:#fff8fa;overflow-x:auto}.call-tabs button{background:#fff;color:var(--accent,#ff6f8d);border:1px solid #ffc8d4;white-space:nowrap;font-size:9px;padding:7px 10px}.call-tabs button.active{background:var(--accent,#ff6f8d);color:#fff}.call-history-list{padding:0 10px 85px;overflow-y:auto}.call-row{display:flex;align-items:center;gap:10px;padding:12px 6px;border-bottom:1px solid #ffe0e7}.call-row .avatar{width:44px;height:44px}.call-info{flex:1}.call-info b{display:block;color:#6b1934;font-size:12px}.call-info small{display:block;color:#a77b89;font-size:9px;margin-top:3px}.call-kind{font-size:18px}.call-empty{text-align:center;color:#a77b89;font-size:11px;padding:40px 15px}.theme-open-btn{width:100%;background:#fff0f4;color:var(--accent,#ff6f8d);border:1px solid #ffc4d1;margin:3px 0 9px}.theme-box h3{margin-bottom:12px}.theme-mode-row{display:flex;gap:8px}.theme-mode-row button{flex:1;background:#fff0f4;color:var(--accent,#ff6f8d);border:1px solid #ffc4d1}.theme-label{font-size:10px;color:#a77b89;margin:14px 0 7px}.color-swatches{display:flex;align-items:center;gap:9px;flex-wrap:wrap}.swatch{width:34px;height:34px;border-radius:50%;padding:0;border:3px solid #fff;box-shadow:0 0 0 1px #ffd1dc}.color-input{width:38px;height:38px;padding:0;border:0;border-radius:50%;overflow:hidden}.status-bg-row{display:flex;gap:6px;margin:10px 0}.status-bg-row button{flex:1;font-size:9px}.modal-box textarea{width:100%;min-height:110px;border:1px solid #ffc4d1;border-radius:15px;padding:10px;resize:none;outline:none;color:#590d22;background:#fff}.dark-mode .modal-box textarea{background:#29253a;color:#fff}.dark-mode .app-page-screen,.dark-mode .status-content,.dark-mode .call-tabs{background:#1d1a29}.dark-mode .page-header,.dark-mode .home-topbar{background:linear-gradient(180deg,#252133,#1e1b2b);border-color:#3c334d}.dark-mode .page-header b,.dark-mode .status-section-title{color:#fff}.dark-mode .page-header small,.dark-mode .status-my-info small,.dark-mode .status-card-info small,.dark-mode .call-info small,.dark-mode .status-empty,.dark-mode .call-empty{color:#bcaecb}.dark-mode .status-hero{background:linear-gradient(135deg,#2b263c,#252034);border-color:#493b58}.dark-mode .status-card,.dark-mode .call-row{background:#242031;border-color:#3b3249}.dark-mode .status-card-info b,.dark-mode .call-info b{color:#fff}.dark-mode .theme-box{background:#252133}.dark-mode .theme-mode-row button,.dark-mode .theme-open-btn{background:#30293f;color:#fff;border-color:#51425f}.dark-mode .bottom-nav{background:rgba(37,32,51,.97);border-color:#4a3a54}.dark-mode .nav-item{color:#e6b7c6!important}.dark-mode .contact-list,.dark-mode .chat-section-title{background:#1d1a29}.dark-mode .contact{background:#242031;border-color:#3b3249}.dark-mode .contact-name,.dark-mode .chat-section-title{color:#fff}.dark-mode .contact-preview{color:#bcaecb}.dark-mode .home-profile-card{background:linear-gradient(135deg,#2b263c,#252034);border-color:#493b58}.dark-mode .home-profile-main b{color:#fff}.dark-mode .home-profile-main .small,.dark-mode .profile-id-row{color:#bcaecb}.dark-mode .search-wrap{background:#29243a;border-color:#4e3e59}.dark-mode .search-wrap input{color:#fff}.dark-mode .search-wrap input::placeholder{color:#bcaecb}
+
+:root{--accent:#ff6f8d;--accent-soft:#ff6f8d22}.status-viewer{width:min(92vw,390px);min-height:55vh;max-height:82vh;border-radius:24px;padding:12px;display:flex;flex-direction:column;box-shadow:0 15px 40px rgba(0,0,0,.25)}.status-viewer>button{align-self:flex-end;width:36px;height:36px;border-radius:50%;padding:0;background:rgba(0,0,0,.25);font-size:22px}.status-view-content{flex:1;display:flex;align-items:center;justify-content:center;padding:8px}.status-view-content img{display:block}.status-view-meta{color:#fff;font-size:11px;background:rgba(0,0,0,.22);padding:8px 10px;border-radius:14px}.channel-page-list{padding:10px;overflow-y:auto}.channel-page-list .channel-avatar{flex:none;width:48px;height:48px}.dark-mode .brand-title{color:#f5a9c0}.dark-mode .status-actions button{background:#30293f;color:#fff;border-color:#51425f}.dark-mode .status-card{box-shadow:none}.dark-mode .call-tabs button{background:#29243a;color:#fff;border-color:#51425f}
+
+@media(max-width:360px){.section-intro{min-width:125px}.channel-main-icon{width:48px;height:48px}.channel-item{min-width:58px}.brand-title{font-size:18px}}
+
+
+/* V7 STATUS + CHANNEL UPGRADE */
+.status-content{padding:12px 10px 88px;overflow-y:auto}
+.status-hero{border-radius:24px;padding:15px}
+.status-actions{display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px}
+.status-actions button{min-height:42px}
+.status-list{display:flex;gap:10px;overflow-x:auto;padding:4px 2px 12px;scroll-snap-type:x mandatory;scrollbar-width:none}
+.status-list::-webkit-scrollbar{display:none}
+.status-card{min-width:155px;max-width:155px;min-height:205px;display:flex;flex-direction:column;align-items:stretch;justify-content:flex-end;position:relative;overflow:hidden;padding:0;border-radius:22px;scroll-snap-align:start;background:#fff;border:1px solid #ffe0e7}
+.status-card .status-ring{position:absolute;top:10px;left:10px;width:46px;height:46px;z-index:2}
+.status-card-info{position:relative;z-index:2;padding:10px 10px 7px;background:linear-gradient(transparent,rgba(0,0,0,.62));min-height:62px;display:flex;flex-direction:column;justify-content:flex-end}
+.status-card-info b{color:#fff!important;font-size:12px;text-shadow:0 1px 2px #0008}
+.status-card-info small{color:#fff!important;text-shadow:0 1px 2px #0008}
+.status-card .status-open-btn{position:absolute;inset:0;background:transparent!important;color:transparent!important;border:0;z-index:3;font-size:0}
+.status-card.status-text-card{background:var(--status-bg,#ff6f8d);color:#fff}
+.status-card.status-text-card .status-card-info{background:transparent;justify-content:center;min-height:100%;padding:28px 15px}
+.status-card.status-text-card .status-card-info small{font-size:13px;white-space:normal;line-height:1.35}
+.status-media-thumb{position:absolute;inset:0;width:100%;height:100%;object-fit:cover}
+.status-empty{width:100%;padding:36px 10px}
+.status-viewer{width:96vw;max-width:620px;min-height:74vh;max-height:90vh;border-radius:28px;padding:10px;position:relative}
+.status-view-content{min-height:62vh;padding:4px;overflow:hidden}
+.status-view-content img,.status-view-content video{width:100%;max-width:100%;max-height:72vh;object-fit:contain;border-radius:20px}
+.status-viewer.status-text-view .status-view-content{font-size:clamp(24px,6vw,46px);font-weight:600;text-align:center;padding:30px}
+.channel-page-list{padding:10px 10px 88px;overflow-y:auto}
+.channel-page-list .channel-card{background:#fff;border:1px solid #ffe0e7;border-radius:22px;padding:12px;margin-bottom:9px;display:flex;align-items:center;gap:10px}
+.channel-page-list .channel-card .channel-avatar{margin:0;width:52px;height:52px;flex:none}
+.channel-card-info{flex:1;min-width:0}
+.channel-card-info b{display:block;color:#6b1934;font-size:13px}
+.channel-card-info small{display:block;color:#a77b89;font-size:9px;margin-top:3px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.channel-open-btn{background:#fff0f4;color:var(--accent,#ff6f8d);padding:8px 11px;font-size:10px}
+.channel-room{display:flex;flex-direction:column;height:calc(100% - 66px);background:#fff8fa}
+.channel-room-head{padding:12px;background:linear-gradient(135deg,#fff0f5,#ffe5ed);border-bottom:1px solid #ffd6e0;display:flex;align-items:center;gap:10px}
+.channel-room-head .channel-avatar{margin:0;width:50px;height:50px}
+.channel-room-head-info{flex:1}.channel-room-head-info b{display:block;color:#6b1934;font-size:15px}.channel-room-head-info small{color:#a77b89;font-size:9px}
+.channel-posts{flex:1;overflow-y:auto;padding:10px}
+.channel-post{background:#fff;border:1px solid #ffe0e7;border-radius:20px;padding:12px;margin-bottom:9px}
+.channel-post-meta{font-size:9px;color:#a77b89;margin-top:7px}.channel-post b{color:#6b1934;font-size:12px}.channel-post p{margin:7px 0 0;color:#593047;font-size:12px;line-height:1.45;white-space:pre-wrap}
+.channel-post img,.channel-post video{width:100%;max-height:300px;object-fit:cover;border-radius:15px;margin-top:8px}
+.channel-compose{padding:9px;border-top:1px solid #ffd7e0;background:#fff;display:flex;gap:7px}.channel-compose input{flex:1;border:1px solid #ffc4d1;border-radius:22px;padding:10px 13px;outline:none}.channel-compose button{border-radius:22px;padding:9px 13px;background:var(--accent,#ff6f8d);color:#fff}
+.channel-readonly{text-align:center;padding:10px;color:#a77b89;font-size:9px;background:#fff5f8;border-top:1px solid #ffe0e7}
+.dark-mode .channel-room,.dark-mode .channel-page-list{background:#1d1a29}.dark-mode .channel-card,.dark-mode .channel-room-head,.dark-mode .channel-post,.dark-mode .channel-compose{background:#242031;border-color:#3b3249}.dark-mode .channel-room-head{background:linear-gradient(135deg,#2b263c,#252034)}.dark-mode .channel-room-head-info b,.dark-mode .channel-post b{color:#fff}.dark-mode .channel-room-head-info small,.dark-mode .channel-post-meta{color:#bcaecb}.dark-mode .channel-post p{color:#eee}.dark-mode .channel-compose input{background:#29243a;color:#fff;border-color:#51425f}.dark-mode .channel-readonly{background:#211d2c;color:#bcaecb}
+
+.status-delete-btn,.channel-delete-btn,.channel-delete-head{border:0;background:#ffe7ed;color:#d84b68;border-radius:12px;padding:7px 9px;font-size:12px}.channel-delete-btn{margin-left:5px}.channel-delete-head{margin-left:auto;background:rgba(255,255,255,.16);color:#fff}.dark-mode .status-delete-btn,.dark-mode .channel-delete-btn{background:#3a2632;color:#ff9db1}
+
+/* V9: channel room fills the screen */
+#channel-room-modal{padding:0!important;background:rgba(0,0,0,.58)!important}
+#channel-room-modal .modal-box{width:100vw!important;max-width:none!important;height:100vh!important;max-height:none!important;border-radius:0!important;padding:0!important}
+#channel-room-modal .channel-room{height:100%;border-radius:0}
+.channel-room-head{min-height:78px!important;padding:10px 14px!important}
+.channel-room-head .channel-avatar{width:58px!important;height:58px!important}
+.channel-room-head .channel-avatar img,.channel-card .channel-avatar img{width:100%;height:100%;object-fit:cover;border-radius:50%}
+.channel-room-head-info{min-width:0}
+.channel-room-head-info b{font-size:17px!important}
+.channel-room-head-info small{font-size:10px!important}
+.channel-profile-edit{width:38px;height:38px;border-radius:50%;padding:0;background:#fff;color:var(--accent,#ff6f8d);border:1px solid #ffc4d1;font-size:18px}
+.channel-room .channel-posts{padding:14px 12px 20px!important}
+.channel-compose{padding:10px 12px 12px!important}
+.channel-compose input{font-size:14px}
+.channel-card{cursor:pointer}
+.channel-avatar{overflow:hidden}
+.channel-avatar img{display:block}
+</style>
+</head>
+
+<body>
+<div class="chat-container">
+
+  <div class="header home-topbar">
+    <div class="brand-title">✦ <span>Private Chat</span> 🌸</div>
+    <button class="top-add-btn" onclick="bukaTambahTeman()" aria-label="Tambah teman">＋</button>
+    <span id="my-name" style="display:none">User</span><span id="my-id" style="display:none">Memuat...</span>
+    <span id="my-status" style="display:none">Available 🌸</span><img id="my-avatar" style="display:none" alt="Profil">
+  </div>
+
+  <!-- HALAMAN DAFTAR CHAT -->
+  <div id="home-screen" class="screen active">
+    <div class="home-search top-search">
+      <div class="search-wrap"><span>⌕</span><input id="search-contact" type="text" placeholder="Cari teman, chat, atau saluran..." oninput="renderContacts()"><button class="search-filter-btn" onclick="alert('Filter pencarian akan segera ditambahkan 🌸')">☷</button></div>
+    </div>
+
+
+
+    <div class="home-profile-card">
+      <img id="home-big-avatar" class="big-avatar" src="" alt="Profil">
+      <div class="home-profile-main">
+        <div><b id="home-big-name">User</b> 🌸 <span class="profile-online-dot">●</span></div>
+        <div class="small" id="home-big-status">online</div>
+        <div class="profile-id-row"><span id="home-big-id">ID: Memuat...</span><button class="mini-copy" onclick="salinID()">📋</button></div>
+      </div>
+      <button class="home-profile-edit" onclick="bukaProfil()">✏️ Edit</button>
+    </div>
+
+    <div class="chat-section-title"><span>Chat</span><small id="chat-count-label">Percakapan kamu</small></div>
+    <div id="contact-list" class="contact-list"></div>
+
+    <nav class="bottom-nav">
+      <button class="nav-item active" onclick="bukaHome()"><span>💬</span><small>Chat</small></button>
+      <button class="nav-item" onclick="bukaChannelPage()"><span>📢</span><small>Saluran</small></button>
+      <button class="nav-item" onclick="bukaPanggilan()"><span>☎</span><small>Panggilan</small></button>
+      <button class="nav-item" onclick="bukaProfil()"><span>♙</span><small>Profil</small></button>
+    </nav>
+  </div>
+
+  <!-- HALAMAN SALURAN -->
+  <div id="channel-screen" class="screen app-page-screen">
+    <div class="page-header"><button class="back-btn" onclick="kembaliKeHome()">‹</button><div><b>Saluran</b><small>Jelajahi dan buat saluran</small></div><button class="page-icon-btn" onclick="bukaBuatSaluran()">＋</button></div>
+    <div id="channel-page-list" class="channel-page-list"></div>
+  </div>
+
+  <!-- HALAMAN RIWAYAT PANGGILAN -->
+  <div id="calls-screen" class="screen app-page-screen">
+    <div class="page-header"><button class="back-btn" onclick="kembaliKeHome()">‹</button><div><b>Riwayat Panggilan</b><small>Panggilan kamu</small></div><button class="page-icon-btn" onclick="hapusRiwayatPanggilan()">⌫</button></div>
+    <div class="call-tabs"><button class="active">Semua</button><button>Masuk</button><button>Keluar</button><button>Tidak terjawab</button></div>
+    <div id="call-history-list" class="call-history-list"></div>
+  </div>
+
+  <!-- HALAMAN ROOM -->
+  <div id="room-screen" class="screen">
+    <div class="room-header">
+      <button class="back-btn" onclick="kembaliKeHome()">‹</button>
+      <div class="room-avatar" id="room-avatar"><img src="" alt=""></div>
+      <div class="room-title">
+        <b id="room-name">Teman</b> <button class="edit-name-btn" style="margin-left:4px" onclick="editNamaTeman()">✏️</button>
+        <small id="room-status">Peer ID</small>
+      </div>
+      <div class="room-actions">
+        <button onclick="panggilSuara()">📞</button>
+        <button onclick="panggilVideo()">📹</button>
+      </div>
+    </div>
+
+    <div class="chat-messages" id="chat-box"></div>
+
+    <div class="picker-panel" id="picker-panel">
+      <div class="picker-tabs">
+        <button id="picker-emoji-btn" class="active-picker" onclick="switchTab('emoji')">😊 Emoji</button>
+        <button id="picker-sticker-btn" onclick="switchTab('sticker')">🎨 Stiker</button>
+      </div>
+      <div id="tab-emoji" class="emoji-grid">
+        <span class="emoji-item" onclick="insertEmoji('🌸')">🌸</span>
+        <span class="emoji-item" onclick="insertEmoji('💖')">💖</span>
+        <span class="emoji-item" onclick="insertEmoji('🎀')">🎀</span>
+        <span class="emoji-item" onclick="insertEmoji('✨')">✨</span>
+        <span class="emoji-item" onclick="insertEmoji('🐱')">🐱</span>
+        <span class="emoji-item" onclick="insertEmoji('🐰')">🐰</span>
+        <span class="emoji-item" onclick="insertEmoji('🥺')">🥺</span>
+        <span class="emoji-item" onclick="insertEmoji('🧸')">🧸</span>
+        <span class="emoji-item" onclick="insertEmoji('🍓')">🍓</span>
+        <span class="emoji-item" onclick="insertEmoji('🍦')">🍦</span>
+        <span class="emoji-item" onclick="insertEmoji('🌷')">🌷</span>
+        <span class="emoji-item" onclick="insertEmoji('💌')">💌</span>
+      </div>
+      <div id="tab-sticker" class="sticker-grid" style="display:none"><div class="sticker-tools"><input id="sticker-url" placeholder="Tempel link stiker..."><button onclick="kirimStikerDariURL()">＋</button><button onclick="document.getElementById('sticker-file').click()">📁</button><input id="sticker-file" type="file" accept="image/*" style="display:none" onchange="kirimStikerDariFile(this)"></div>
+        <img class="sticker-item" src="https://cdn-icons-png.flaticon.com/512/4712/4712035.png" onclick="kirimStiker(this.src)">
+        <img class="sticker-item" src="https://cdn-icons-png.flaticon.com/512/4712/4712038.png" onclick="kirimStiker(this.src)">
+        <img class="sticker-item" src="https://cdn-icons-png.flaticon.com/512/4712/4712027.png" onclick="kirimStiker(this.src)">
+        <img class="sticker-item" src="https://cdn-icons-png.flaticon.com/512/4712/4712040.png" onclick="kirimStiker(this.src)">
+        <img class="sticker-item" src="https://cdn-icons-png.flaticon.com/512/4712/4712010.png" onclick="kirimStiker(this.src)">
+      </div>
+    </div>
+
+    <div id="typing-bubble" class="typing-bubble"><i></i><i></i><i></i></div>
+
+    <div class="chat-input-bar">
+      <button class="unified-picker-btn" onclick="togglePicker()">😊</button>
+      <button class="photo-btn" onclick="kirimFoto()">📷</button>
+      <input id="msg-input" type="text" placeholder="Ketik pesan..." onkeypress="handleKeyPress(event)">
+      <button id="vn-btn" class="btn-vn" onclick="toggleRecordVN()">🎙️</button>
+      <button class="send-btn" onclick="kirimPesanTeks()">➤</button>
+    </div>
+  </div>
+
+  <div class="video-call-overlay" id="vc-overlay">
+    <video id="remote-video" class="remote-video" autoplay playsinline></video>
+    <video id="local-video" class="call-mini" autoplay playsinline muted></video>
+    <div class="call-title">Panggilan 💗</div>
+    <div class="call-buttons"><button class="mute" id="mute-call-btn" onclick="toggleMuteCall()">🎙️</button><button class="end" onclick="matikanMedia()">📞</button></div>
+  </div>
+
+  <div id="add-modal" class="modal">
+    <div class="modal-box">
+      <h3>Tambah teman 🌸</h3>
+      <input id="new-name" type="text" placeholder="Nama teman">
+      <input id="new-id" type="text" placeholder="Peer ID teman">
+      <div class="modal-buttons">
+        <button class="btn-light" onclick="tutupTambahTeman()">Batal</button>
+        <button onclick="simpanTeman()">Simpan 💗</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div id="friend-edit-modal" class="modal"><div class="modal-box"><h3>Edit teman 🌸</h3><input id="friend-edit-name" type="text" maxlength="40" placeholder="Nama teman"><div class="modal-buttons"><button class="btn-light" onclick="tutupEditTeman()">Batal</button><button onclick="simpanEditTeman()">Simpan 💗</button></div></div></div>
+<div id="channel-modal" class="modal"><div class="modal-box"><h3>Buat Saluran 📢</h3><div style="text-align:center"><img id="channel-preview" class="profile-preview" src="" alt="Foto saluran"></div><input id="channel-profile-file" type="file" accept="image/*" onchange="previewChannelImage(this)"><input id="channel-name" type="text" maxlength="40" placeholder="Nama saluran"><input id="channel-desc" type="text" maxlength="80" placeholder="Deskripsi singkat"><div class="modal-buttons"><button class="btn-light" onclick="tutupBuatSaluran()">Batal</button><button onclick="buatSaluran()">Buat 🌸</button></div></div></div>
+<div id="profile-modal" class="modal profile-modal"><div class="modal-box"><h3>Edit profil 🌸</h3><img id="profile-preview" class="profile-preview"><input id="profile-file" type="file" accept="image/*" onchange="previewProfile(this)"><input id="profile-name-input" type="text" maxlength="40" placeholder="Nama kamu"><input id="profile-status-input" type="text" maxlength="80" placeholder="Status kamu..."><div class="profile-id-edit"><span id="profile-id-text">ID: Memuat...</span><button class="mini-copy" onclick="salinID()">📋</button></div><button class="theme-open-btn" onclick="bukaTema()">🎨 Tampilan & warna</button><div class="modal-buttons"><button class="btn-light" onclick="tutupProfil()">Batal</button><button onclick="simpanProfil()">Simpan 💗</button></div></div></div><div id="theme-modal" class="modal"><div class="modal-box theme-box"><h3>🎨 Tampilan</h3><div class="theme-mode-row"><button onclick="setTheme('light')">☀️ Terang</button><button onclick="setTheme('dark')">🌙 Gelap</button></div><p class="theme-label">Warna utama</p><div class="color-swatches"><button class="swatch" style="background:var(--accent,#ff6f8d)" onclick="setAccent('#ff6f8d')"></button><button class="swatch" style="background:#b56cff" onclick="setAccent('#b56cff')"></button><button class="swatch" style="background:#5b9cff" onclick="setAccent('#5b9cff')"></button><button class="swatch" style="background:#38b878" onclick="setAccent('#38b878')"></button><button class="swatch" style="background:#ff9f43" onclick="setAccent('#ff9f43')"></button><input id="custom-color" class="color-input" type="color" value="#ff6f8d" onchange="setAccent(this.value)"></div><div class="modal-buttons"><button class="btn-light" onclick="tutupTema()">Tutup</button></div></div></div>
+<input id="photo-message-file" type="file" accept="image/*" style="display:none" onchange="kirimFotoDariFile(this)"><audio id="remote-audio" autoplay></audio>
+
+<script>
+const myIdEl=document.getElementById('my-id');
+const chatBox=document.getElementById('chat-box');
+const msgInput=document.getElementById('msg-input');
+const vnBtn=document.getElementById('vn-btn');
+const vcOverlay=document.getElementById('vc-overlay');
+const localVideo=document.getElementById('local-video');
+const remoteVideo=document.getElementById('remote-video');
+const remoteAudio=document.getElementById('remote-audio');
+const homeScreen=document.getElementById('home-screen');
+const roomScreen=document.getElementById('room-screen');
+
+let savedName=localStorage.getItem('cuteChatMyName');
+let savedId=localStorage.getItem('cuteChatMyId');
+let savedAvatar=localStorage.getItem('cuteChatMyAvatar')||'';
+let savedStatus=localStorage.getItem('cuteChatMyStatus')||'online';
+let typingTimer=null;
+let callMuted=false;
+
+if(!savedName){
+  savedName=(prompt("Masukkan nama pengguna kamu 🌸")||"User").trim()||"User";
+  localStorage.setItem("cuteChatMyName",savedName);
+}
+
+function setAvatar(el,src){if(!el)return;el.src=src||"data:image/svg+xml;charset=UTF-8,"+encodeURIComponent('<svg xmlns="http://www.w3.org/2000/svg" width="80" height="80"><rect width="100%" height="100%" fill="#ffe4e8"/><text x="50%" y="60%" text-anchor="middle" font-size="38">🌸</text></svg>');}
+setAvatar(document.getElementById("my-avatar"),savedAvatar);
+setAvatar(document.getElementById("home-big-avatar"),savedAvatar);setAvatar(document.getElementById("status-my-avatar"),savedAvatar);
+document.getElementById("my-status").innerText=savedStatus;
+document.getElementById("home-big-name").innerText=savedName;
+document.getElementById("home-big-status").innerText=savedStatus;
+function bukaProfil(){
+  document.getElementById("profile-name-input").value=savedName;
+  document.getElementById("profile-status-input").value=savedStatus;
+  document.getElementById("profile-id-text").innerText="ID: "+(savedId||"Memuat...");
+  setAvatar(document.getElementById("profile-preview"),savedAvatar);
+  document.getElementById("profile-modal").style.display="flex";
+}
+function tutupProfil(){document.getElementById("profile-modal").style.display="none";}
+function previewProfile(input){const f=input.files&&input.files[0];if(!f)return;const r=new FileReader();r.onload=()=>setAvatar(document.getElementById("profile-preview"),r.result);r.readAsDataURL(f);}
+function simpanProfil(){
+  const f=document.getElementById("profile-file").files[0];
+  const n=document.getElementById("profile-name-input").value.trim();
+  if(n){savedName=n;localStorage.setItem("cuteChatMyName",savedName);document.getElementById("my-name").innerText=savedName;document.getElementById("home-big-name").innerText=savedName;}
+  savedStatus=document.getElementById("profile-status-input").value.trim()||"online";
+  localStorage.setItem("cuteChatMyStatus",savedStatus);
+  document.getElementById("my-status").innerText=savedStatus;document.getElementById("home-big-status").innerText=savedStatus;document.getElementById("status-my-sub").innerText=savedStatus;
+  if(f){const r=new FileReader();r.onload=()=>{savedAvatar=r.result;localStorage.setItem("cuteChatMyAvatar",savedAvatar);setAvatar(document.getElementById("my-avatar"),savedAvatar);setAvatar(document.getElementById("home-big-avatar"),savedAvatar);setAvatar(document.getElementById("status-my-avatar"),savedAvatar);tutupProfil();};r.readAsDataURL(f);}else tutupProfil();
+}
+function ubahStatus(){const v=prompt("Tulis status kamu 🌸",savedStatus);if(v===null)return;savedStatus=v.trim()||"online";localStorage.setItem("cuteChatMyStatus",savedStatus);document.getElementById("my-status").innerText=savedStatus;document.getElementById("home-big-status").innerText=savedStatus;}
+function editNama(){bukaProfil();}
+function kirimFoto(){document.getElementById("photo-message-file").click();}
+function kirimFotoDariFile(input){const f=input.files&&input.files[0];if(!f||!activeContact)return;const r=new FileReader();r.onload=()=>{const m={type:"photo",sender:savedName,content:r.result,kind:"me",time:waktu(),read:false};simpanDanTampil(m);const p={type:"photo",sender:savedName,photoUrl:r.result,time:m.time};if(conn&&conn.open)conn.send(p);input.value="";};r.readAsDataURL(f);}
+function kirimStikerDariURL(){const u=document.getElementById("sticker-url").value.trim();if(u){kirimStiker(u);document.getElementById("sticker-url").value="";}}
+function kirimStikerDariFile(input){const f=input.files&&input.files[0];if(!f||!activeContact)return;const r=new FileReader();r.onload=()=>{kirimStiker(r.result);input.value="";};r.readAsDataURL(f);}
+function toggleMuteCall(){if(!localStream)return;callMuted=!callMuted;localStream.getAudioTracks().forEach(t=>t.enabled=!callMuted);document.getElementById("mute-call-btn").innerText=callMuted?"🔇":"🎙️";}
+function kirimTyping(v){if(conn&&conn.open)conn.send({type:"typing",state:v});}
+function mintaNotifikasi(){if("Notification" in window&&Notification.permission==="default")Notification.requestPermission();}
+mintaNotifikasi();
+function buatIDDasar(nama){
+  return nama.toLowerCase().replace(/[^a-z0-9]/g,"").slice(0,12)||"user";
+}
+
+function buatPeerDenganID(id){
+  return new Peer(id,{
+    host:"0.peerjs.com",
+    port:443,
+    path:"/",
+    secure:true,
+    debug:2
+  });
+}
+
+let peer=null;
+let conn=null,currentCall=null,localStream=null,mediaRecorder=null,audioChunks=[],isRecording=false;
+let activeContact=null;
+let contactFilter="all";
+let contacts=JSON.parse(localStorage.getItem("cuteChatContacts")||"[]");
+let histories=JSON.parse(localStorage.getItem("cuteChatHistories")||"{}");
+let channels=JSON.parse(localStorage.getItem("cuteChatChannels")||"[]");
+let statuses=JSON.parse(localStorage.getItem("cuteChatStatuses")||"[]");
+let callHistory=JSON.parse(localStorage.getItem("cuteChatCallHistory")||"[]");
+let statusBg="#ff6f8d";
+let themeMode=localStorage.getItem("cuteChatTheme")||"light";
+let accent=localStorage.getItem("cuteChatAccent")||"#ff6f8d";
+
+const audioCtx=new(window.AudioContext||window.webkitAudioContext)();
+
+function playPopSound(){
+  if(audioCtx.state==="suspended") audioCtx.resume();
+  const o=audioCtx.createOscillator(),g=audioCtx.createGain();
+  o.type="sine";o.frequency.setValueAtTime(600,audioCtx.currentTime);
+  o.frequency.exponentialRampToValueAtTime(1200,audioCtx.currentTime+.08);
+  g.gain.setValueAtTime(.2,audioCtx.currentTime);
+  g.gain.exponentialRampToValueAtTime(.01,audioCtx.currentTime+.08);
+  o.connect(g);g.connect(audioCtx.destination);o.start();o.stop(audioCtx.currentTime+.08);
+}
+
+async function mulaiPeer(){
+  document.getElementById("my-name").innerText=savedName;
+
+  if(savedId){
+    peer=buatPeerDenganID(savedId);
+  }else{
+    const base=buatIDDasar(savedName);
+    let nomor=1;
+    let berhasil=false;
+
+    while(nomor<=99 && !berhasil){
+      const calon=base+"-"+String(nomor).padStart(2,"0");
+      peer=buatPeerDenganID(calon);
+
+      berhasil=await new Promise(resolve=>{
+        let selesai=false;
+        const finish=ok=>{
+          if(selesai)return;
+          selesai=true;
+          resolve(ok);
+        };
+        peer.once("open",()=>finish(true));
+        peer.once("error",err=>{
+          if(err.type==="unavailable-id") finish(false);
+          else finish(false);
+        });
+        setTimeout(()=>finish(false),5000);
+      });
+
+      if(!berhasil){
+        try{peer.destroy()}catch(e){}
+        nomor++;
+      }
+    }
+
+    if(!berhasil){
+      myIdEl.innerText="Gagal membuat ID";
+      return;
+    }
+
+    savedId=peer.id;
+    localStorage.setItem("cuteChatMyId",savedId);
+  }
+
+  peer.on("open",id=>{
+    savedId=id;
+    localStorage.setItem("cuteChatMyId",id);
+    myIdEl.innerText=id;
+    document.getElementById("my-name").innerText=savedName;
+    document.getElementById("home-big-name").innerText=savedName;
+    document.getElementById("home-big-id").innerText="ID: "+id;
+    document.getElementById("profile-id-text").innerText="ID: "+id;
+    renderContacts();
+  });
+
+  peer.on("error",err=>{
+    console.error("PeerJS Error:",err);
+    myIdEl.innerText=err.type==="unavailable-id"?"ID dipakai":"Gagal terhubung";
+  });
+
+  peer.on("disconnected",()=>{
+    myIdEl.innerText="Menghubungkan ulang...";
+    setTimeout(()=>{
+      if(peer.disconnected&&!peer.destroyed)peer.reconnect();
+    },2000);
+  });
+}
+
+function salinID(){
+  if(!savedId)return;
+  if(navigator.clipboard){
+    navigator.clipboard.writeText(savedId).then(()=>alert("ID berhasil disalin 💗\n"+savedId));
+  }else{
+    prompt("Salin ID kamu:",savedId);
+  }
+}
+
+mulaiPeer();
+
+
+function bukaHome(){hideScreens();homeScreen.classList.add("active");renderContacts();}
+function hideScreens(){[homeScreen,roomScreen,document.getElementById("status-screen"),document.getElementById("channel-screen"),document.getElementById("calls-screen")].forEach(x=>x&&x.classList.remove("active"));}
+function bukaStatus(){hideScreens();document.getElementById("status-screen").classList.add("active");renderStatusList();}
+function bukaChannelPage(){hideScreens();document.getElementById("channel-screen").classList.add("active");renderChannelPage();}
+function bukaPanggilan(){hideScreens();document.getElementById("calls-screen").classList.add("active");renderCallHistory();}
+function setStatusBg(c){statusBg=c;}
+function bukaStatusMenu(){document.getElementById("status-text-input").value="";document.getElementById("status-modal").style.display="flex";}
+function tutupStatusMenu(){document.getElementById("status-modal").style.display="none";}
+function simpanStatusTeks(){const text=document.getElementById("status-text-input").value.trim();if(!text)return alert("Tulis status dulu ya 🌸");statuses.unshift({id:Date.now(),createdAt:Date.now(),type:"text",text,bg:statusBg,time:waktu(),owner:savedName,ownerId:savedId||"",avatar:savedAvatar});statuses=statuses.slice(0,30);saveAll();renderStatusList();tutupStatusMenu();}
+function buatStatusTeks(){bukaStatusMenu();}
+function buatStatusMedia(input){const f=input.files&&input.files[0];if(!f)return;const r=new FileReader();r.onload=()=>{const isVideo=f.type.startsWith("video/");statuses.unshift({id:Date.now(),createdAt:Date.now(),type:isVideo?"video":"photo",content:r.result,time:waktu(),owner:savedName,ownerId:savedId||"",avatar:savedAvatar});statuses=statuses.slice(0,30);saveAll();renderStatusList();input.value="";};r.readAsDataURL(f);}
+function bukaStatusItem(id){
+  const st=statuses.find(x=>x.id===id); if(!st)return;
+  let w="";
+  if(st.type==="text") w='<div style="font-size:clamp(24px,6vw,46px);line-height:1.25">'+escapeHTML(st.text)+'</div>';
+  else if(st.type==="photo") w='<img src="'+escapeHTML(st.content)+'">';
+  else w='<video src="'+escapeHTML(st.content)+'" controls autoplay playsinline></video>';
+  const modal=document.createElement("div"); modal.className="modal"; modal.style.display="flex";
+  modal.innerHTML='<div class="status-viewer '+(st.type==="text"?'status-text-view':'')+'" style="background:'+(st.bg||'#ff6f8d')+'"><button onclick="this.closest(\'.modal\').remove()">×</button><div class="status-view-content">'+w+'</div><div class="status-view-meta">'+escapeHTML(st.owner||savedName)+' · '+escapeHTML(st.time||'')+' · aktif 24 jam</div></div>';
+  document.body.appendChild(modal);
+}
+
+function hapusStatus(id){
+  const st=statuses.find(x=>String(x.id)===String(id));
+  if(!st)return;
+  const owner=String(st.ownerId||savedId||"")===String(savedId||"") || String(st.owner||"")===String(savedName||"");
+  if(!owner)return alert("Kamu hanya bisa menghapus status milikmu 🌸");
+  if(!confirm("Hapus status ini?"))return;
+  statuses=statuses.filter(x=>String(x.id)!==String(id));
+  saveAll(); renderStatusList();
+}
+
+function renderStatusList(){
+  const box=document.getElementById("status-list"); if(!box)return;
+  statuses=statuses.filter(statusMasihAktif); saveAll(); box.innerHTML="";
+  if(!statuses.length){box.innerHTML='<div class="status-empty">Belum ada status. Tambahkan status foto, video, atau teks ✨</div>';document.getElementById("status-my-sub").innerText="Tambahkan status";return;}
+  document.getElementById("status-my-sub").innerText="Aktif 24 jam · "+statuses.length+" status";
+  statuses.slice(0,30).forEach(st=>{
+    const el=document.createElement("div");
+    const avatar=st.avatar||savedAvatar;
+    el.className="status-card"+(st.type==="text"?" status-text-card":"");
+    if(st.type==="text") el.style.setProperty("--status-bg",st.bg||"#ff6f8d");
+    let media="";
+    if(st.type==="photo") media='<img class="status-media-thumb" src="'+escapeHTML(st.content)+'">';
+    if(st.type==="video") media='<video class="status-media-thumb" src="'+escapeHTML(st.content)+'" muted></video>';
+    const ring=avatar?'<img src="'+escapeHTML(avatar)+'">':'<div style="height:100%;display:flex;align-items:center;justify-content:center">🌸</div>';
+    const preview=st.type==="text"?st.text:(st.type==="photo"?"📷 Foto":"🎥 Video");
+    el.innerHTML=media+'<div class="status-ring">'+ring+'</div><div class="status-card-info"><b>'+escapeHTML(st.owner||savedName)+'</b><small>'+escapeHTML(preview)+' · '+escapeHTML(st.time||"")+'</small></div><button class="status-open-btn" onclick="bukaStatusItem('+st.id+')">Lihat</button>'+(String(st.ownerId||savedId||"")===String(savedId||"")?'<button class="status-delete-btn" onclick="event.stopPropagation();hapusStatus('+st.id+')">🗑️</button>':"");
+    box.appendChild(el);
+  });
+}
+
+let activeChannelId=null;
+function renderChannelPage(){
+  const box=document.getElementById("channel-page-list"); if(!box)return; box.innerHTML="";
+  if(!channels.length){box.innerHTML='<div class="status-empty">Belum ada saluran. Tekan ＋ untuk membuat saluran 🌸</div>';return;}
+  channels.forEach(c=>{
+    const el=document.createElement("div"); el.className="channel-card";
+    const posts=c.posts||[]; const latest=posts[posts.length-1];
+    el.innerHTML='<div class="channel-avatar">'+(c.avatar?'<img src="'+escapeHTML(c.avatar)+'" alt="">':escapeHTML(c.icon||"📢"))+'</div><div class="channel-card-info"><b>'+escapeHTML(c.name)+'</b><small>'+escapeHTML(c.desc||"Belum ada deskripsi")+' · '+posts.length+' postingan</small></div><button class="channel-open-btn" onclick="bukaChannelRoom(\''+escapeHTML(c.id||String(c.createdAt))+'\')">Buka</button>';
+    box.appendChild(el);
+  });
+}
+function bukaBuatSaluran(){document.getElementById("channel-name").value="";document.getElementById("channel-desc").value="";const f=document.getElementById("channel-profile-file");if(f)f.value="";const p=document.getElementById("channel-preview");if(p){p.src="";p.style.display="none";}document.getElementById("channel-modal").style.display="flex";}
+function tutupBuatSaluran(){document.getElementById("channel-modal").style.display="none";}
+function previewChannelImage(input){
+  const f=input&&input.files&&input.files[0]; if(!f)return;
+  const r=new FileReader(); r.onload=()=>{document.getElementById("channel-preview").src=r.result;document.getElementById("channel-preview").style.display="block";}; r.readAsDataURL(f);
+}
+function buatSaluran(){
+  const name=document.getElementById("channel-name").value.trim(); const desc=document.getElementById("channel-desc").value.trim();
+  if(!name)return alert("Nama saluran belum diisi 🌸");
+  const file=document.getElementById("channel-profile-file");
+  const make=(avatar)=>{
+    const c={id:"ch-"+Date.now(),name,desc,icon:"📢",avatar:avatar||"",createdAt:Date.now(),ownerId:savedId||"",ownerName:savedName,posts:[],members:1};
+    channels.unshift(c); saveAll(); renderChannels(); renderChannelPage(); tutupBuatSaluran(); bukaChannelRoom(c.id);
+  };
+  if(file&&file.files&&file.files[0]){const r=new FileReader();r.onload=()=>make(r.result);r.readAsDataURL(file.files[0]);}else make("");
+}
+function bukaChannelRoom(id){
+  const c=channels.find(x=>String(x.id||x.createdAt)===String(id)); if(!c)return;
+  activeChannelId=c.id||c.createdAt;
+  const modal=document.createElement("div"); modal.className="modal"; modal.style.display="flex"; modal.id="channel-room-modal";
+  const isOwner=String(c.ownerId||"")===String(savedId||"") || String(c.ownerName||"")===String(savedName||"");
+  const avatarHtml=c.avatar?'<img src="'+escapeHTML(c.avatar)+'" alt="">':escapeHTML(c.icon||"📢");
+  const idStr=String(c.id||c.createdAt);
+  modal.innerHTML=`<div class="modal-box"><div class="channel-room">
+    <div class="channel-room-head">
+      <button class="back-btn" onclick="this.closest('.modal').remove()">‹</button>
+      <div class="channel-avatar">${avatarHtml}</div>
+      <div class="channel-room-head-info"><b>${escapeHTML(c.name)}</b><small>${escapeHTML(c.desc||"Saluran")} · ${c.members||1} pengikut</small></div>
+      ${isOwner?`<button class="channel-profile-edit" onclick="ubahFotoSaluran('${escapeHTML(idStr)}')">📷</button>`:""}
+    </div>
+    <div id="channel-posts-${escapeHTML(idStr)}" class="channel-posts"></div>
+    ${isOwner?`<div class="channel-compose"><input id="channel-post-input-${escapeHTML(idStr)}" placeholder="Tulis postingan saluran..."><button onclick="kirimChannelPost()">➤</button></div>`:`<div class="channel-readonly">📢 Kamu mengikuti saluran ini. Hanya pembuat saluran yang dapat mengirim postingan.</div>`}
+  </div></div>`;
+  document.body.appendChild(modal); renderChannelPosts(c);
+}
+
+function ubahFotoSaluran(id){
+  const c=channels.find(x=>String(x.id||x.createdAt)===String(id)); if(!c)return;
+  const isOwner=String(c.ownerId||"")===String(savedId||"") || String(c.ownerName||"")===String(savedName||"");
+  if(!isOwner)return;
+  const input=document.createElement("input"); input.type="file"; input.accept="image/*"; input.style.display="none";
+  input.onchange=()=>{const f=input.files&&input.files[0];if(!f)return;const r=new FileReader();r.onload=()=>{c.avatar=r.result;saveAll();const room=document.getElementById("channel-room-modal");if(room)room.remove();renderChannelPage();renderChannels();bukaChannelRoom(c.id);};r.readAsDataURL(f);};
+  document.body.appendChild(input); input.click(); setTimeout(()=>input.remove(),1000);
+}
+
+function renderChannelPosts(c){
+  const box=document.getElementById("channel-posts-"+String(c.id||c.createdAt)); if(!box)return; box.innerHTML="";
+  const posts=c.posts||[];
+  if(!posts.length){box.innerHTML='<div class="status-empty">Belum ada postingan. '+(String(c.ownerId||"")===String(savedId||"")?'Tulis postingan pertama kamu ✨':'Tunggu postingan dari pembuat saluran ✨')+'</div>';return;}
+  posts.slice().reverse().forEach(p=>{const el=document.createElement("div");el.className="channel-post";el.innerHTML='<b>'+escapeHTML(p.sender||c.ownerName||savedName)+'</b><p>'+escapeHTML(p.text||"")+'</p><div class="channel-post-meta">'+escapeHTML(p.time||"")+'</div>';box.appendChild(el);});
+}
+function kirimChannelPost(){
+  const c=channels.find(x=>String(x.id||x.createdAt)===String(activeChannelId)); if(!c)return;
+  const isOwner=String(c.ownerId||"")===String(savedId||"") || String(c.ownerName||"")===String(savedName||""); if(!isOwner)return;
+  const input=document.getElementById("channel-post-input-"+String(c.id||c.createdAt)); const text=input&&input.value.trim(); if(!text)return;
+  c.posts=c.posts||[]; c.posts.push({id:Date.now(),sender:savedName,text,time:waktu()}); saveAll(); renderChannelPosts(c); input.value=""; renderChannelPage();
+}
+
+function hapusSaluran(id){
+  const c=channels.find(x=>String(x.id||x.createdAt)===String(id));
+  if(!c)return;
+  const isOwner=String(c.ownerId||"")===String(savedId||"") || String(c.ownerName||"")===String(savedName||"");
+  if(!isOwner)return alert("Hanya pembuat saluran yang bisa menghapus saluran ini.");
+  if(!confirm("Hapus saluran ini?"))return;
+  // Kirim sinyal ke teman yang sedang online. Untuk penghapusan permanen lintas-perangkat/offline,
+  // saluran perlu disimpan di backend/database.
+  contacts.forEach(ct=>{
+    try{
+      if(peer && ct.id && ct.id!==savedId){
+        const cconn=peer.connect(ct.id);
+        cconn.on("open",()=>{
+          cconn.send({type:"channel_delete",channelId:String(c.id||c.createdAt),channelName:c.name});
+          setTimeout(()=>{try{cconn.close()}catch(e){}},500);
+        });
+      }
+    }catch(e){}
+  });
+  channels=channels.filter(x=>String(x.id||x.createdAt)!==String(id));
+  saveAll(); renderChannelPage(); renderChannels();
+  const room=document.getElementById("channel-room-modal"); if(room)room.remove();
+}
+
+function logCall(contact,type,direction){if(!contact)return;callHistory.unshift({name:contact.name,id:contact.id,avatar:contact.avatar,type,direction,time:waktu()});callHistory=callHistory.slice(0,50);saveAll();renderCallHistory();}
+function renderCallHistory(){const box=document.getElementById("call-history-list");if(!box)return;box.innerHTML="";if(!callHistory.length){box.innerHTML='<div class="call-empty">Belum ada riwayat panggilan ☎️</div>';return;}callHistory.forEach(c=>{const el=document.createElement("div");el.className="call-row";const av=String(c.avatar||"🌸");el.innerHTML='<div class="avatar">'+(av.startsWith("data:image")?'<img src="'+escapeHTML(av)+'" style="width:100%;height:100%;border-radius:50%;object-fit:cover">':escapeHTML(av))+'</div><div class="call-info"><b>'+escapeHTML(c.name)+'</b><small>'+(c.direction==="out"?'↗️ Keluar':'↙️ Masuk')+' · '+escapeHTML(c.time)+'</small></div><div class="call-kind">'+(c.type==="video"?'📹':'📞')+'</div>';box.appendChild(el);});}
+function hapusRiwayatPanggilan(){if(!callHistory.length)return; if(confirm("Hapus semua riwayat panggilan?")){callHistory=[];saveAll();renderCallHistory();}}
+function bukaTema(){document.getElementById("theme-modal").style.display="flex";}
+function tutupTema(){document.getElementById("theme-modal").style.display="none";}
+function setTheme(mode){themeMode=mode;localStorage.setItem("cuteChatTheme",mode);applyTheme();}
+function setAccent(c){accent=c;localStorage.setItem("cuteChatAccent",c);document.documentElement.style.setProperty("--accent",c);document.documentElement.style.setProperty("--accent-soft",c+"22");}
+function applyTheme(){document.body.classList.toggle("dark-mode",themeMode==="dark");setAccent(accent);}
+
+function saveAll(){
+  localStorage.setItem("cuteChatContacts",JSON.stringify(contacts));
+  localStorage.setItem("cuteChatHistories",JSON.stringify(histories));
+  localStorage.setItem("cuteChatChannels",JSON.stringify(channels));
+  localStorage.setItem("cuteChatStatuses",JSON.stringify(statuses));
+  localStorage.setItem("cuteChatCallHistory",JSON.stringify(callHistory));
+}
+
+function escapeHTML(s){
+  return String(s).replace(/[&<>"']/g,m=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#039;"}[m]));
+}
+
+function waktu(){
+  const d=new Date();
+  return d.toLocaleTimeString("id-ID",{hour:"2-digit",minute:"2-digit"});
+}
+
+function setContactFilter(filter){contactFilter=filter;renderContacts();}
+function contactIsOnline(c){return c.status==='online'||c.online===true}
+function renderContacts(){
+  const list=document.getElementById("contact-list");
+  const q=(document.getElementById("search-contact").value||"").toLowerCase();
+  list.innerHTML="";
+  const shown=contacts.filter(c=>c.name.toLowerCase().includes(q));
+  if(!shown.length){list.innerHTML='<div class="empty">Belum ada teman di sini 🌸<br>Tekan “Tambah teman” untuk mulai.</div>';return;}
+  shown.forEach(c=>{
+    const h=histories[c.id]||[]; const last=h[h.length-1];
+    const preview=last?(last.type==="text"?last.content:last.type==="vn"?"🎙️ Voice message":last.type==="photo"?"📷 Foto":"🎨 Sticker"):"Belum ada pesan";
+    const el=document.createElement("div");el.className="contact";
+    const avatar=String(c.avatar||"🌸").startsWith("data:image")?`<img src="${escapeHTML(c.avatar)}" style="width:100%;height:100%;border-radius:50%;object-fit:cover">`:escapeHTML(c.avatar||"🌸");
+    el.innerHTML=`<div class="avatar">${avatar}</div><div class="contact-info"><div class="contact-name">${escapeHTML(c.name)} ${contactIsOnline(c)?'<span style="color:#45c46a;font-size:10px">●</span>':'<span style="color:#aaa;font-size:10px">●</span>'}</div><div class="contact-preview">${escapeHTML(preview)}</div></div><div style="display:flex;flex-direction:column;align-items:flex-end;gap:7px"><div class="contact-time">${last?escapeHTML(last.time):""}</div><button class="contact-edit" onclick="event.stopPropagation();bukaEditTeman('${escapeHTML(c.id)}')">✏️</button></div>`;
+    el.onclick=()=>bukaRoom(c); list.appendChild(el);
+  });
+}
+
+function bukaEditTeman(id){const c=contacts.find(x=>x.id===id);if(!c)return;document.getElementById("friend-edit-name").value=c.name;document.getElementById("friend-edit-modal").dataset.id=id;document.getElementById("friend-edit-modal").style.display="flex";}
+function tutupEditTeman(){document.getElementById("friend-edit-modal").style.display="none";}
+function simpanEditTeman(){const modal=document.getElementById("friend-edit-modal");const id=modal.dataset.id;const n=document.getElementById("friend-edit-name").value.trim();if(!n)return alert("Nama belum diisi 🌸");const c=contacts.find(x=>x.id===id);if(c){c.name=n;saveAll();if(activeContact&&activeContact.id===id){activeContact=c;document.getElementById("room-name").innerText=n;}renderContacts();}tutupEditTeman();}
+function editNamaTeman(){if(activeContact)bukaEditTeman(activeContact.id);}
+function bukaTambahTeman(){
+  document.getElementById("add-modal").style.display="flex";
+}
+function tutupTambahTeman(){
+  document.getElementById("add-modal").style.display="none";
+}
+function simpanTeman(){
+  const name=document.getElementById("new-name").value.trim();
+  const id=document.getElementById("new-id").value.trim();
+  if(!name||!id)return alert("Isi nama dan Peer ID teman dulu ya 🌸");
+  if(contacts.some(c=>c.id===id))return alert("Teman ini sudah ada 💗");
+  contacts.push({name,id,avatar:["🌸","🐰","🎀","🧸","🦋"][contacts.length%5],status:"offline"});
+  saveAll();renderContacts();
+  document.getElementById("new-name").value="";
+  document.getElementById("new-id").value="";
+  tutupTambahTeman();
+}
+
+function setRoomAvatar(avatar){const box=document.getElementById("room-avatar");const a=String(avatar||"🌸");box.innerHTML=a.startsWith("data:image")?`<img src="${escapeHTML(a)}" alt="">`:`<span style="font-size:22px">${escapeHTML(a)}</span>`;}
+function bukaRoom(contact){
+  activeContact=contact;
+  document.getElementById("room-name").innerText=contact.name;
+  setRoomAvatar(contact.avatar);
+  document.getElementById("room-status").innerText="ID: "+contact.id;
+  homeScreen.classList.remove("active");roomScreen.classList.add("active");
+  renderHistory();
+  connectToActive();
+}
+
+function kembaliKeHome(){
+  hideScreens();homeScreen.classList.add("active");
+  if(conn)try{conn.close()}catch(e){}
+  conn=null;activeContact=null;
+  roomScreen.classList.remove("active");homeScreen.classList.add("active");
+  renderContacts();
+}
+
+function connectToActive(){
+  if(!activeContact)return;
+  conn=peer.connect(activeContact.id);
+  conn.on("open",()=>{document.getElementById("room-status").innerText="● Terhubung";});
+  conn.on("data",terimaData);
+  conn.on("close",()=>{if(activeContact)document.getElementById("room-status").innerText="○ Terputus";});
+}
+
+peer.on("connection",c=>{
+  conn=c;
+  conn.on("data",terimaData);
+  const found=contacts.find(x=>x.id===c.peer);
+  if(found){
+    activeContact=found;
+    homeScreen.classList.remove("active");roomScreen.classList.add("active");
+    document.getElementById("room-name").innerText=found.name;
+    setRoomAvatar(found.avatar);
+    document.getElementById("room-status").innerText="● Terhubung";
+    renderHistory();
+  }else{
+    // Teman baru tetap bisa mengirim pesan; belum masuk daftar otomatis.
+    console.log("Koneksi dari Peer ID:",c.peer);
+  }
+});
+
+function terimaData(data){
+  if(data && data.type==="channel_delete"){
+    const target=String(data.channelId||"");
+    channels=channels.filter(x=>String(x.id||x.createdAt)!==target);
+    saveAll(); renderChannelPage(); renderChannels();
+    const room=document.getElementById("channel-room-modal"); if(room)room.remove();
+    if("Notification" in window&&Notification.permission==="granted"&&document.visibilityState!=="visible")new Notification("Saluran dihapus",{body:data.channelName?data.channelName+" telah dihapus.":"Saluran telah dihapus."});
+    return;
+  }
+  if(data.type==="typing"){const b=document.getElementById("typing-bubble");b.classList.toggle("show",!!data.state);clearTimeout(typingTimer);if(data.state)typingTimer=setTimeout(()=>b.classList.remove("show"),1800);return;}
+  if(!activeContact)return;
+  if(data.type==="text")simpanDanTampil({type:"text",sender:data.sender,content:data.content,kind:"them",time:data.time,delivered:true});
+  else if(data.type==="sticker")simpanDanTampil({type:"sticker",sender:data.sender,content:data.stickerUrl,kind:"them",time:data.time,delivered:true});
+  else if(data.type==="vn")simpanDanTampil({type:"vn",sender:data.sender,content:data.audioUrl,kind:"them",time:data.time,delivered:true});
+  else if(data.type==="photo")simpanDanTampil({type:"photo",sender:data.sender,content:data.photoUrl,kind:"them",time:data.time,delivered:true});
+  if("Notification" in window&&Notification.permission==="granted"&&document.visibilityState!=="visible")new Notification(data.sender||"Pesan baru",{body:data.type==="text"?data.content:"Pesan baru 💌"});
+}
+
+function renderHistory(){
+  chatBox.innerHTML="";
+  const arr=histories[activeContact.id]||[];
+  arr.forEach(m=>renderMessage(m,false));
+  chatBox.scrollTop=chatBox.scrollHeight;
+}
+
+function simpanDanTampil(m){
+  if(!activeContact)return;
+  if(!histories[activeContact.id])histories[activeContact.id]=[];
+  histories[activeContact.id].push(m);
+  // Batasi agar localStorage tidak cepat penuh.
+  if(histories[activeContact.id].length>300)histories[activeContact.id].shift();
+  saveAll();
+  renderMessage(m,true);
+  renderContacts();
+}
+
+function renderMessage(m,sound=true){
+  if(sound)playPopSound();
+  const el=document.createElement("div");el.className="msg "+m.kind;
+  const name=escapeHTML(m.sender||"Anonim"),time=escapeHTML(m.time||"");
+  let body=m.type==="text"?`<span>${escapeHTML(m.content)}</span>`:m.type==="sticker"?`<img class="sticker-img" src="${escapeHTML(m.content)}">`:m.type==="vn"?`<div>🎙️ <b>Voice Note</b></div><audio controls src="${m.content}"></audio>`:`<img class="msg-photo" src="${escapeHTML(m.content)}">`;
+  const ticks=m.kind==="me"?(m.read?'<span class="msg-status blue">✓✓</span>':'<span class="msg-status gray">✓</span>'):'';
+  el.innerHTML=`<span class="sender-name">${name}</span>${body}<span class="msg-time">${time} ${ticks}</span>`;
+  chatBox.appendChild(el);chatBox.scrollTop=chatBox.scrollHeight;
+}
+
+function kirimPesanTeks(){
+  if(!activeContact)return alert("Pilih teman dulu ya 🌸");
+  const teks=msgInput.value.trim();
+  if(!teks)return;
+  const sender=localStorage.getItem("cuteChatMyName")||"Aku";
+  const m={type:"text",sender,content:teks,kind:"me",time:waktu(),read:false};
+  simpanDanTampil(m);
+  if(conn&&conn.open)conn.send({type:"text",sender,content:teks,time:m.time});
+  msgInput.value="";
+}
+function handleKeyPress(e){if(e.key==="Enter")kirimPesanTeks()}
+
+function kirimStiker(url){
+  if(!activeContact)return;
+  const sender=localStorage.getItem("cuteChatMyName")||"Aku";
+  const m={type:"sticker",sender,content:url,kind:"me",time:waktu()};
+  simpanDanTampil(m);
+  if(conn&&conn.open)conn.send({type:"sticker",sender,audioUrl:"",stickerUrl:url,time:m.time});
+  togglePicker();
+}
+function togglePicker(){
+  const p=document.getElementById("picker-panel");
+  p.style.display=p.style.display==="block"?"none":"block";
+}
+function switchTab(tab){
+  document.getElementById("tab-emoji").style.display=tab==="emoji"?"flex":"none";
+  document.getElementById("tab-sticker").style.display=tab==="sticker"?"flex":"none";
+  document.getElementById("picker-emoji-btn").classList.toggle("active-picker",tab==="emoji");
+  document.getElementById("picker-sticker-btn").classList.toggle("active-picker",tab==="sticker");
+}
+function insertEmoji(e){msgInput.value+=e}
+
+async function toggleRecordVN(){
+  if(!activeContact)return alert("Pilih teman dulu ya 🌸");
+  if(!isRecording){
+    try{
+      const stream=await navigator.mediaDevices.getUserMedia({audio:true});
+      mediaRecorder=new MediaRecorder(stream);audioChunks=[];
+      mediaRecorder.ondataavailable=e=>{if(e.data.size)audioChunks.push(e.data)};
+      mediaRecorder.onstop=()=>{
+        const blob=new Blob(audioChunks,{type:"audio/webm"});
+        const reader=new FileReader();
+        reader.onloadend=()=>{
+          const sender=localStorage.getItem("cuteChatMyName")||"Aku";
+          const m={type:"vn",sender,content:reader.result,kind:"me",time:waktu()};
+          simpanDanTampil(m);
+          if(conn&&conn.open)conn.send({type:"vn",sender,audioUrl:reader.result,time:m.time});
+        };
+        reader.readAsDataURL(blob);
+        stream.getTracks().forEach(t=>t.stop());
+      };
+      mediaRecorder.start();isRecording=true;vnBtn.classList.add("recording");
+    }catch(e){alert("Akses mikrofon dibutuhkan untuk VN 🎙️")}
+  }else{
+    mediaRecorder.stop();isRecording=false;vnBtn.classList.remove("recording");
+  }
+}
+
+function panggilSuara(){logCall(activeContact,"voice","out");mulaiPanggilan(false)}
+function panggilVideo(){logCall(activeContact,"video","out");mulaiPanggilan(true)}
+function mulaiPanggilan(isVideo){
+  if(!activeContact)return alert("Pilih teman dulu ya 🌸");
+  navigator.mediaDevices.getUserMedia({audio:true,video:isVideo}).then(stream=>{
+    localStream=stream;
+    if(isVideo){localVideo.srcObject=stream;vcOverlay.style.display="flex"}
+    const call=peer.call(activeContact.id,stream,{metadata:{isVideo}});
+    prosesStream(call,isVideo);
+  }).catch(()=>alert("Izin kamera/mikrofon diperlukan."))
+}
+
+peer.on("call",call=>{
+  const isVideo=call.metadata&&call.metadata.isVideo;
+  if(confirm(isVideo?"📹 Ada Video Call masuk! Angkat?":"📞 Ada panggilan masuk! Angkat?")){
+    navigator.mediaDevices.getUserMedia({audio:true,video:isVideo}).then(stream=>{
+      localStream=stream;
+      if(isVideo){localVideo.srcObject=stream;vcOverlay.style.display="flex"}
+      call.answer(stream);logCall(activeContact||{name:call.peer,id:call.peer,avatar:"🌸"},isVideo?"video":"voice","in");prosesStream(call,isVideo);
+    });
+  }
+});
+
+function prosesStream(call,isVideo){
+  currentCall=call;
+  call.on("stream",stream=>{
+    if(isVideo)remoteVideo.srcObject=stream;
+    else remoteAudio.srcObject=stream;
+  });
+  call.on("close",matikanMedia);
+}
+function matikanMedia(){
+  if(currentCall)try{currentCall.close()}catch(e){}
+  if(localStream)localStream.getTracks().forEach(t=>t.stop());
+  currentCall=null;localStream=null;
+  vcOverlay.style.display="none";
+  remoteAudio.srcObject=null;remoteVideo.srcObject=null;localVideo.srcObject=null;
+}
+
+localStorage.setItem("cuteChatMyName",savedName);
+setAvatar(document.getElementById("my-avatar"),savedAvatar);
+document.getElementById("my-status").innerText=savedStatus;
+document.getElementById("home-big-name").innerText=savedName;
+document.getElementById("home-big-status").innerText=savedStatus;
+document.getElementById("home-big-id").innerText="ID: "+(savedId||"Memuat...");
+document.getElementById("profile-id-text").innerText="ID: "+(savedId||"Memuat...");
+setAvatar(document.getElementById("home-big-avatar"),savedAvatar);
+setAvatar(document.getElementById("status-my-avatar"),savedAvatar);
+renderContacts();
+renderStatusList();
+renderCallHistory();
+applyTheme();
+msgInput.addEventListener("input",()=>{kirimTyping(true);clearTimeout(typingTimer);typingTimer=setTimeout(()=>kirimTyping(false),1200);});
+
+if("serviceWorker" in navigator)navigator.serviceWorker.register("sw.js").catch(console.log);
+</script>
+</body>
+</html>
